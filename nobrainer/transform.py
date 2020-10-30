@@ -76,7 +76,7 @@ def _warp_coords(matrix, volume_shape):
     return (coords_homogeneous @ tf.transpose(matrix))[..., :3]
 
 
-def get_affine(volume_shape, rotation=[0, 0, 0], translation=[0, 0, 0]):
+def get_affine(volume_shape, rotation=[0, 0, 0], translation=[0, 0, 0], scaling=[1,1,1]):
     """Return 4x4 affine, which encodes rotation and translation of 3D tensors.
 
     Parameters
@@ -85,6 +85,7 @@ def get_affine(volume_shape, rotation=[0, 0, 0], translation=[0, 0, 0]):
         respectively, in radians.
     translation: iterable of three numbers, the number of voxels to translate
         in the x, y, and z directions.
+    scaling: iterable of three numbers, the number of voxels to scale in the x,y and z directions
 
     Returns
     -------
@@ -93,12 +94,15 @@ def get_affine(volume_shape, rotation=[0, 0, 0], translation=[0, 0, 0]):
     volume_shape = tf.cast(volume_shape, tf.float32)
     rotation = tf.cast(rotation, tf.float32)
     translation = tf.cast(translation, tf.float32)
+    scaling = tf.cast(scaling, tf.float32)
     if volume_shape.shape[0] != 3:
         raise ValueError("`volume_shape` must have three values")
     if rotation.shape[0] != 3:
         raise ValueError("`rotation` must have three values")
     if translation.shape[0] != 3:
         raise ValueError("`translation` must have three values")
+    if scaling.shape[0] != 3:
+        raise ValueError("`scaling` must have three values")
 
     # ROTATION
     # yaw
@@ -162,6 +166,19 @@ def get_affine(volume_shape, rotation=[0, 0, 0], translation=[0, 0, 0]):
     # Rotation around center of volume.
     transform = origin_to_center @ transform @ center_to_origin
 
+    #SCALING
+    scaling = tf.convert_to_tensor(
+        [
+            [scaling[0], 0, 0, 0],
+            [0, scaling[1], 0, 0],
+            [0, 0, scaling[2], 0],
+            [0, 0, 0, 1],
+        ],
+        dtype=tf.float32,
+    )
+
+    transform = scaling @ transform
+
     # TRANSLATION
     translation = tf.convert_to_tensor(
         [
@@ -184,13 +201,14 @@ def get_affine(volume_shape, rotation=[0, 0, 0], translation=[0, 0, 0]):
     return transform
 
 
-def _get_coordinates(volume_shape):
+def _get_coordinates(volume_shape, output_shape=None):
     """Get coordinates that represent every voxel in a volume with shape
     `volume_shape`.
 
     Parameters
     ----------
-    volume_shape: tuple of length 3, shape of output volume.
+    volume_shape: tuple of length 3, shape of input volume.
+    output_shape: tuple of length 3, shape of output volume
 
     Returns
     -------
@@ -207,6 +225,11 @@ def _get_coordinates(volume_shape):
         tf.range(depth, dtype=dtype),
         indexing="ij",
     )
+
+    if isinstance(output_shape,(list,tuple)):
+        zoom_factor = [(volume_shape[i]-1)/(output_shape[i]-1) for i in range(len(volume_shape))]
+        out = [out[i]/zoom_factor[i] for i in range(len(volume_shape))]
+
     return tf.reshape(tf.stack(out, axis=3), shape=(-1, 3))
 
 
@@ -216,7 +239,7 @@ def _nearest_neighbor_interpolation(volume, coords):
     return tf.reshape(volume_f, volume.shape)
 
 
-def _trilinear_interpolation(volume, coords):
+def _trilinear_interpolation(volume, coords, output_shape=None):
     """Trilinear interpolation.
 
     Implemented according to
@@ -226,6 +249,11 @@ def _trilinear_interpolation(volume, coords):
     volume = tf.cast(volume, tf.float32)
     coords = tf.cast(coords, tf.float32)
     coords_floor = tf.floor(coords)
+
+    if isinstance(output_shape,(list,tuple)):
+        output_shape = tf.cast(output_shape, tf.int32)
+        final_shape = output_shape
+    else: final_shape = volume.shape
 
     shape = tf.shape(volume)
     xlen = shape[0]
@@ -287,7 +315,7 @@ def _trilinear_interpolation(volume, coords):
     # Interpolate along z-axis.
     c = c0 * (1 - zd) + c1 * zd
 
-    return tf.reshape(c, volume.shape)
+    return tf.reshape(tf.cast(c,dtype=tf.float32), tf.cast(final_shape,dtype=tf.int32))
 
 
 def _get_voxels(volume, coords):

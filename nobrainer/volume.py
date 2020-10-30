@@ -4,9 +4,51 @@ import itertools
 
 import numpy as np
 import tensorflow as tf
+import math
 
 from nobrainer.transform import get_affine
 from nobrainer.transform import warp_features_labels
+from nobrainer.transform import _get_coordinates
+from nobrainer.transform import _trilinear_interpolation
+
+def apply_bias_field(features, bias_field_std=.3, bias_shape_factor=.025):
+    """
+    Applies a bias field to feature volume
+    Function inspired by : Unsupervised Learning for Fast Probabilistic Diffeomorphic Registration
+    Adrian V. Dalca, Guha Balakrishnan, John Guttag, Mert R. Sabuncu
+    MICCAI 2018. (https://github.com/BBillot/SynthSeg/blob/c2dda86844c40f7afbb568791ecc896c48d9208c/ext/lab2im/intensity_augmentation.py#L13)
+    
+    This function applies a bias field to the input tensor. The following steps occur:
+    1) a small-size SVF is sampled from a centred normal distribution of random standard deviation,
+    2) it is resized with trilinear interpolation to image size
+    3) it is rescaled to postive values by taking the voxel-wise exponential
+    4) it is multiplied to the input tensor.
+
+    Parameters
+    ----------
+    features: tensor, values to transform.
+    bias_field_std: scalar (optional) standard deviation of the distribution from which the bias field is sampled
+                    default : 0.3
+    bias_shape_factor: scalar (optional) ratio between the shape of the feature volume and shape of the sampled SVF.
+                        default : 0.025
+
+    Returns
+    -------
+    Tensor of biased feature volume.
+    """
+
+    features_shape = list(features.shape)
+
+    small_shape =  [math.ceil(features_shape[i] * bias_shape_factor) for i in range(len(features_shape))]
+    bias_shape = tf.convert_to_tensor(small_shape,dtype='int32')
+
+    bias_std = tf.random.uniform((1, 1), maxval=bias_field_std)
+    bias_field = tf.random.normal(tf.cast(bias_shape, dtype='int32'), stddev=bias_std)
+    coords = _get_coordinates(features_shape, list(np.asarray(bias_shape)))
+    bias_field = _trilinear_interpolation(bias_field, coords, features_shape)
+    bias_field = tf.exp(bias_field)
+
+    return tf.multiply(bias_field,tf.cast(features,dtype='float32'))
 
 
 def apply_random_transform(features, labels):
@@ -32,9 +74,16 @@ def apply_random_transform(features, labels):
         shape=[3], minval=-maxval, maxval=maxval, dtype=tf.float32
     )
 
+    # Scaling at most 5% in any direction
+    minval = 1 - 0.05
+    maxval = 1 + 0.05
+    scaling = tf.random.uniform(
+        shape=[3], minval=minval, maxval=maxval, dtype=tf.float32
+    )
+
     volume_shape = np.asarray(features.shape)
     matrix = get_affine(
-        volume_shape=volume_shape, rotation=rotation, translation=translation
+        volume_shape=volume_shape, rotation=rotation, translation=translation, scaling=scaling,
     )
     return warp_features_labels(features=features, labels=labels, matrix=matrix)
 
@@ -61,9 +110,16 @@ def apply_random_transform_scalar_labels(features, labels):
         shape=[3], minval=-maxval, maxval=maxval, dtype=tf.float32
     )
 
+    # Scaling at most 5% in any direction
+    minval = 1 - 0.05
+    maxval = 1 + 0.05
+    scaling = tf.random.uniform(
+        shape=[3], minval=minval, maxval=maxval, dtype=tf.float32
+    )
+
     volume_shape = np.asarray(features.shape)
     matrix = get_affine(
-        volume_shape=volume_shape, rotation=rotation, translation=translation
+        volume_shape=volume_shape, rotation=rotation, translation=translation, scaling=scaling,
     )
     return warp_features_labels(
         features=features, labels=labels, matrix=matrix, scalar_label=True
@@ -125,7 +181,6 @@ def replace(x, mapping, zero=True):
         out = tf.multiply(out, tf.cast(mask, tf.int32))
 
     return out
-
 
 def standardize(x):
     """Standard score input tensor.
