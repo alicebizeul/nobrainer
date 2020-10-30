@@ -114,6 +114,30 @@ def cli():
     **_option_kwds,
 )
 @click.option(
+    "--affine",
+    default=False,
+    help="Create tfrecords with affine transformation data augmentation",
+    **_option_kwds,
+)
+@click.option(
+    "--bias_field",
+    default=False,
+    help="Create tfrecords with bias field data augmentation",
+    **_option_kwds,
+)
+@click.option(
+    "--n_affine",
+    default=1,
+    help="Number of additional samples to create by affine transformation data augmentation",
+    **_option_kwds,
+)
+@click.option(
+    "--n_bias",
+    default=1,
+    help="Number of additional samples to create by bias field data augmentation",
+    **_option_kwds,
+)
+@click.option(
     "-v", "--verbose", is_flag=True, help="Print progress bar.", **_option_kwds
 )
 def convert(
@@ -128,6 +152,10 @@ def convert(
     num_parallel_calls,
     multi_resolution,
     start_resolution,
+    affine,
+    bias_field,
+    n_affine,
+    n_bias,
     verbose,
 ):
     """Convert medical imaging volumes to TFRecords.
@@ -190,6 +218,10 @@ def convert(
         processes=num_parallel_calls,
         multi_resolution=multi_resolution,
         resolutions=resolutions,
+        affine=affine,
+        bias_field=bias_field,
+        n_affine=n_affine,
+        n_bias=n_bias,
         verbose=verbose,
     )
 
