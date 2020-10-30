@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import tensorflow as tf
 import skimage.transform
+import matplotlib.pyplot as plt
 
 from nobrainer.io import read_volume
 from nobrainer.volume import apply_random_transform_scalar_labels
@@ -418,7 +419,11 @@ class _ProtoIterator:
                 
                 for i in range(1,self.n_affine+1): 
                     if self.scalar_label:
+<<<<<<< HEAD
                         (x, y) = apply_random_transform_scalar_labels(original,np.asarray([int(y)]))
+=======
+                        (x, y) = apply_random_transform_scalar_labels(original,np.asarray([int(original_y)]))
+>>>>>>> 80c6bb07ca04afb068336281480ee840a872dfc6
                         x = np.asarray(x)
                         y = np.asarray(y)[0]
 
@@ -643,7 +648,12 @@ class _ProtoIterator:
                 return proto_dict
                     
             else:
+<<<<<<< HEAD
 
+=======
+                print('multi resolution')
+                
+>>>>>>> 80c6bb07ca04afb068336281480ee840a872dfc6
                 # only scalar label
                 proto_dict = {}
                 for res in self.resolutions:
@@ -746,8 +756,14 @@ def _write_tfrecords(protobuf_iterator, filename, compressed=True, multi_resolut
             for resolution in resolutions:
                 tf_record_writers = {}
                 filenames = ['{0}-res-{2:03d}-augment-{3:03d}{1}'.format(*os.path.splitext(filename)+(resolution,)+(i,)) for i in range(n_affine+n_bias+1)]
+<<<<<<< HEAD
                 for i, filename_ in zip(range(n_affine+n_bias+1),filenames):
                     tf_record_writers[i] = tf.io.TFRecordWriter(filename_, options=options)
+=======
+                
+                for i, filename in zip(range(n_affine+n_bias+1),filenames):
+                    tf_record_writers[i] = tf.io.TFRecordWriter(filename, options=options)
+>>>>>>> 80c6bb07ca04afb068336281480ee840a872dfc6
                 for i in range(n_affine+n_bias+1):
                     tf_record_writers[i].write(proto_string_dict[resolution][i])
             [tf_record_writers[writer].close() for writer in tf_record_writers]
