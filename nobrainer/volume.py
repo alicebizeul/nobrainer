@@ -78,8 +78,9 @@ def apply_random_transform(features, labels):
     minval = 1 - 0.05
     maxval = 1 + 0.05
     scaling = tf.random.uniform(
-        shape=[3], minval=minval, maxval=maxval, dtype=tf.float32
+        shape=[1], minval=minval, maxval=maxval, dtype=tf.float32
     )
+    scaling = tf.concat([scaling,scaling,scaling],axis=0)
 
     volume_shape = np.asarray(features.shape)
     matrix = get_affine(
@@ -114,8 +115,9 @@ def apply_random_transform_scalar_labels(features, labels):
     minval = 1 - 0.05
     maxval = 1 + 0.05
     scaling = tf.random.uniform(
-        shape=[3], minval=minval, maxval=maxval, dtype=tf.float32
+        shape=[1], minval=minval, maxval=maxval, dtype=tf.float32
     )
+    scaling = tf.concat([scaling,scaling,scaling],axis=0)
 
     volume_shape = np.asarray(features.shape)
     matrix = get_affine(

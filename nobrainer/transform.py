@@ -251,7 +251,7 @@ def _trilinear_interpolation(volume, coords, output_shape=None):
     coords_floor = tf.floor(coords)
 
     if isinstance(output_shape,(list,tuple)):
-        output_shape = tf.cast(output_shape, tf.int32)
+        output_shape = tf.cast(output_shape, tf.float32)
         final_shape = output_shape
     else: final_shape = volume.shape
 

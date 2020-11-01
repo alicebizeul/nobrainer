@@ -345,7 +345,6 @@ class _ProtoIterator:
     def _serialize(self, index):
         try:
             x, y = self.features_labels[index]
-            y = np.asarray(y)
         except IndexError:
             raise StopIteration
 
@@ -419,11 +418,7 @@ class _ProtoIterator:
                 
                 for i in range(1,self.n_affine+1): 
                     if self.scalar_label:
-<<<<<<< HEAD
                         (x, y) = apply_random_transform_scalar_labels(original,np.asarray([int(y)]))
-=======
-                        (x, y) = apply_random_transform_scalar_labels(original,np.asarray([int(original_y)]))
->>>>>>> 80c6bb07ca04afb068336281480ee840a872dfc6
                         x = np.asarray(x)
                         y = np.asarray(y)[0]
 
@@ -648,12 +643,6 @@ class _ProtoIterator:
                 return proto_dict
                     
             else:
-<<<<<<< HEAD
-
-=======
-                print('multi resolution')
-                
->>>>>>> 80c6bb07ca04afb068336281480ee840a872dfc6
                 # only scalar label
                 proto_dict = {}
                 for res in self.resolutions:
@@ -751,22 +740,20 @@ def _write_tfrecords(protobuf_iterator, filename, compressed=True, multi_resolut
             for i in range(n_affine+n_bias+1):
                 tf_record_writers[i].write(proto_string_dict[i])
         [tf_record_writers[writer].close() for writer in tf_record_writers]
-    elif multi_resolution and affine and bias_field:
+     elif multi_resolution and affine and bias_field:
+        tf_record_writers = {}
+        for resolution in resolutions:
+            tf_record_writers[resolution] = {}
+            for i in range(n_affine+n_bias+1):
+                filename_ = '{0}-res-{2:03d}-augment-{3:03d}{1}'.format(*os.path.splitext(filename)+(resolution,)+(i,))
+                print(filename_)
+                tf_record_writers[resolution][i] = tf.io.TFRecordWriter(filename_, options=options)
+
         for proto_string_dict in protobuf_iterator:
             for resolution in resolutions:
-                tf_record_writers = {}
-                filenames = ['{0}-res-{2:03d}-augment-{3:03d}{1}'.format(*os.path.splitext(filename)+(resolution,)+(i,)) for i in range(n_affine+n_bias+1)]
-<<<<<<< HEAD
-                for i, filename_ in zip(range(n_affine+n_bias+1),filenames):
-                    tf_record_writers[i] = tf.io.TFRecordWriter(filename_, options=options)
-=======
-                
-                for i, filename in zip(range(n_affine+n_bias+1),filenames):
-                    tf_record_writers[i] = tf.io.TFRecordWriter(filename, options=options)
->>>>>>> 80c6bb07ca04afb068336281480ee840a872dfc6
                 for i in range(n_affine+n_bias+1):
-                    tf_record_writers[i].write(proto_string_dict[resolution][i])
-            [tf_record_writers[writer].close() for writer in tf_record_writers]
+                    tf_record_writers[resolution][i].write(proto_string_dict[resolution][i])
+        [tf_record_writers[resolution][i].close() for resolution, i in zip(resolutions,range(n_affine+n_bias+1))]
 
 
 def _is_int_or_float(value):
